@@ -17,10 +17,21 @@ role_checker = Depends(RoleChecker(["admin", "user"]))
 @books_router.get("/", response_model=List[Book], dependencies=[role_checker])
 async def get_all_books(
     session: AsyncSession = Depends(get_session),
-    user_details=Depends(access_token_bearer),
+    token_details: dict = Depends(access_token_bearer),
 ):
-    print(user_details)
     books = await book_service.get_all_books(session)
+    return books
+
+
+@books_router.get(
+    "/user/{user_uid}", response_model=List[Book], dependencies=[role_checker]
+)
+async def get_user_book_submission(
+    user_uid=str,
+    session: AsyncSession = Depends(get_session),
+    token_details: dict = Depends(access_token_bearer),
+):
+    books = await book_service.get_user_books(user_uid, session)
     return books
 
 
@@ -33,16 +44,18 @@ async def get_all_books(
 async def create_book(
     book_data: BookCreateModel,
     session: AsyncSession = Depends(get_session),
-    user_details=Depends(access_token_bearer),
-):
-    return await book_service.create_book(book_data, session)
+    token_details: dict = Depends(access_token_bearer),
+) -> dict:
+    print(token_details)
+    user_id = token_details["user"]["uid"]
+    return await book_service.create_book(book_data, user_id, session)
 
 
 @books_router.get("/{book_uid}", response_model=Book, dependencies=[role_checker])
 async def get_book(
     book_uid: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    user_details=Depends(access_token_bearer),
+    token_details: dict = Depends(access_token_bearer),
 ):
     book = await book_service.get_book(book_uid, session)
 
@@ -59,7 +72,7 @@ async def update_book(
     book_uid: uuid.UUID,
     book_update_data: BookUpdateModel,
     session: AsyncSession = Depends(get_session),
-    user_details=Depends(access_token_bearer),
+    token_details: dict = Depends(access_token_bearer),
 ):
     updated_book = await book_service.update_book(book_uid, book_update_data, session)
 
@@ -77,7 +90,7 @@ async def update_book(
 async def delete_book(
     book_uid: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    user_details=Depends(access_token_bearer),
+    token_details: dict = Depends(access_token_bearer),
 ):
     deleted = await book_service.delete_book(book_uid, session)
 

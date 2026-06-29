@@ -57,13 +57,13 @@ async def login_user(
             access_token = create_access_token(
                 user_data={
                     "email": user.email,
-                    "user.uid": str(user.uid),
+                    "uid": str(user.uid),
                     "role": user.role,
                 }
             )
 
             refresh_token = create_access_token(
-                user_data={"email": user.email, "user.uid": str(user.uid)},
+                user_data={"email": user.email, "uid": str(user.uid)},
                 refresh=True,
                 expiry=timedelta(days=REFRESH_TOKEN_EXPIRY),
             )
@@ -95,7 +95,7 @@ async def get_new_access_token(token_details: dict = Depends(RefreshTokenBearer(
     )
 
 
-@auth_router.get("/me")
+@auth_router.get("/me", response_model=UserModel)
 async def get_current_user(
     user=Depends(get_current_user), _: bool = Depends(role_checker)
 ):
