@@ -1,12 +1,19 @@
-from fastapi import Request, status
+from fastapi import Request, status, Depends
 from .utils import decode_access_token
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.exceptions import HTTPException
 from src.db.redis import token_in_blocklist
+from src.db.main import get_session
+from sqlmodel.ext.asyncio.session import AsyncSession
+from .service import UserService
+from typing import Any, List
+from .models import User
+
+user_service = UserService()
 
 
 class TokenBearer(HTTPBearer):
-    def __int__(self, auto_error=True):
+    def __init__(self, auto_error=True):
         super().__init__(auto_error=auto_error)
 
     async def __call__(self, request: Request) -> HTTPAuthorizationCredentials | None:
@@ -63,3 +70,27 @@ class RefreshTokenBearer(TokenBearer):
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Please provide a valid refresh token token",
             )
+
+
+async def get_current_user(
+    token_details: dict = Depends(AccessTokenBearer()),
+    session: AsyncSession = Depends(get_session),
+):
+    user_email = token_details["user"]["email"]
+
+    user = await user_service.get_user_by_email(user_email, session)
+    return user
+
+
+class RoleChecker:
+    def __init__(self, allowed_roles: List[str]) -> None:
+        self.allowed_roles = allowed_roles
+
+    def __call__(self, current_user: User = Depends(get_current_user)) -> Any:
+        if current_user.role in self.allowed_roles:
+            return True
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not permitted to perform this action",
+        )

@@ -6,14 +6,15 @@ import uuid
 from src.db.main import get_session
 from src.books.schemas import Book, BookCreateModel, BookUpdateModel
 from src.books.service import BookService
-from src.auth.dependencies import AccessTokenBearer
+from src.auth.dependencies import AccessTokenBearer, RoleChecker
 
 books_router = APIRouter()
 book_service = BookService()
 access_token_bearer = AccessTokenBearer()
+role_checker = Depends(RoleChecker(["admin", "user"]))
 
 
-@books_router.get("/", response_model=List[Book])
+@books_router.get("/", response_model=List[Book], dependencies=[role_checker])
 async def get_all_books(
     session: AsyncSession = Depends(get_session),
     user_details=Depends(access_token_bearer),
@@ -23,7 +24,12 @@ async def get_all_books(
     return books
 
 
-@books_router.post("/", status_code=status.HTTP_201_CREATED, response_model=Book)
+@books_router.post(
+    "/",
+    status_code=status.HTTP_201_CREATED,
+    response_model=Book,
+    dependencies=[role_checker],
+)
 async def create_book(
     book_data: BookCreateModel,
     session: AsyncSession = Depends(get_session),
@@ -32,7 +38,7 @@ async def create_book(
     return await book_service.create_book(book_data, session)
 
 
-@books_router.get("/{book_uid}", response_model=Book)
+@books_router.get("/{book_uid}", response_model=Book, dependencies=[role_checker])
 async def get_book(
     book_uid: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -48,7 +54,7 @@ async def get_book(
     return book
 
 
-@books_router.patch("/{book_uid}", response_model=Book)
+@books_router.patch("/{book_uid}", response_model=Book, dependencies=[role_checker])
 async def update_book(
     book_uid: uuid.UUID,
     book_update_data: BookUpdateModel,
@@ -65,7 +71,9 @@ async def update_book(
     return updated_book
 
 
-@books_router.delete("/{book_uid}", status_code=status.HTTP_204_NO_CONTENT)
+@books_router.delete(
+    "/{book_uid}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[role_checker]
+)
 async def delete_book(
     book_uid: uuid.UUID,
     session: AsyncSession = Depends(get_session),
